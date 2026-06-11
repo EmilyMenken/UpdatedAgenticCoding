@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+// 1. Initial Data List
 const INITIAL_DINOS = [
   {
     filename: "Ankylosaurus.png",
@@ -204,7 +205,6 @@ export default function DinoQuiz() {
   const [score, setScore] = useState(0);
   const [typingBuffer, setTypingBuffer] = useState("");
   const [skipConfirm, setSkipConfirm] = useState(false);
-  const [gameEndedOnce, setGameEndedOnce] = useState(false);
 
   const totalDinos = dinos.length;
   const isGameOverScreen = currentIndex >= totalDinos;
@@ -212,16 +212,10 @@ export default function DinoQuiz() {
   const currentDino = !isGameOverScreen ? dinos[currentIndex] : null;
   const alreadyAnswered = currentDino ? currentDino.userAnswer !== null : false;
 
+  const stateRef = useRef({ currentIndex, dinos, alreadyAnswered, typingBuffer, skipConfirm, score, isGameOverScreen });
   useEffect(() => {
-    if (currentIndex >= totalDinos) {
-      setGameEndedOnce(true);
-    }
-  }, [currentIndex, totalDinos]);
-
-  const stateRef = useRef({ currentIndex, dinos, alreadyAnswered, typingBuffer, skipConfirm, score, isGameOverScreen, gameEndedOnce });
-  useEffect(() => {
-    stateRef.current = { currentIndex, dinos, alreadyAnswered, typingBuffer, skipConfirm, score, isGameOverScreen, gameEndedOnce };
-  }, [currentIndex, dinos, alreadyAnswered, typingBuffer, skipConfirm, score, isGameOverScreen, gameEndedOnce]);
+    stateRef.current = { currentIndex, dinos, alreadyAnswered, typingBuffer, skipConfirm, score, isGameOverScreen };
+  }, [currentIndex, dinos, alreadyAnswered, typingBuffer, skipConfirm, score, isGameOverScreen]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -229,7 +223,7 @@ export default function DinoQuiz() {
       const idx = state.currentIndex;
 
       if (e.key === "ArrowLeft") {
-        e.preventDefault(); // Stop event bubbling/double firing
+        e.preventDefault();
         if (idx > 0) {
           setCurrentIndex(idx - 1);
           setTypingBuffer("");
@@ -239,9 +233,8 @@ export default function DinoQuiz() {
       }
 
       if (e.key === "ArrowRight") {
-        e.preventDefault(); // Stop event bubbling/double firing
+        e.preventDefault();
         if (idx < totalDinos) {
-          // STRICT RULE: You cannot advance unless this card was already answered or skipped
           if (!state.isGameOverScreen && !state.alreadyAnswered) return;
           
           setCurrentIndex(idx + 1);
@@ -251,7 +244,6 @@ export default function DinoQuiz() {
         return;
       }
 
-      // Completely lock typing inputs down if reviewing an old slide or summary screen
       if (state.isGameOverScreen || state.alreadyAnswered) return;
 
       if (e.key === "ArrowDown") {
@@ -299,6 +291,11 @@ export default function DinoQuiz() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [totalDinos]);
 
+  // Dev shortcut helper to quickly trigger game over state
+  const devSkipToEnd = () => {
+    setCurrentIndex(totalDinos);
+  };
+
   const getFeedbackMessage = () => {
     if (!currentDino || !alreadyAnswered) return "";
     const pts = currentDino.pointsEarned ?? 0;
@@ -334,37 +331,106 @@ export default function DinoQuiz() {
         border: '1px solid #333',
         boxSizing: 'border-box'
       }}>
-        {/* Score display */}
+        {/* Header Summary Tab */}
         <div style={{
           position: 'absolute',
-          top: '10px',
-          left: '10px',
-          fontSize: '28px',
-          fontWeight: 'bold',
+          top: '15px',
+          left: '20px',
+          right: '20px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
           zIndex: 10,
         }}>
-          Score: {score} | Dino {Math.min(currentIndex + 1, totalDinos)}/{totalDinos}
+          <span style={{ fontSize: '24px', fontWeight: 'bold' }}>
+            Score: {score} / {totalDinos * 3}
+          </span>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            {/* Secret Dev Testing Button */}
+            {!isGameOverScreen && (
+              <button 
+                onClick={devSkipToEnd}
+                style={{
+                  backgroundColor: '#ff3333',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '4px 10px',
+                  fontFamily: 'monospace',
+                  fontWeight: 'bold',
+                  fontSize: '12px',
+                  borderRadius: '3px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.5)'
+                }}
+              >
+                DEV: SKIP TO END
+              </button>
+            )}
+            <span style={{ fontSize: '18px', color: '#ffcc4c' }}>
+              {isGameOverScreen ? "🏆 SCORECARD" : `Dino ${currentIndex + 1}/${totalDinos}`}
+            </span>
+          </div>
         </div>
 
-        {/* Core Frame viewport container */}
+        {/* Dynamic Display Stage Container */}
         <div style={{
           width: '100%',
-          height: '440px',
+          height: '420px',
+          marginTop: '60px',
+          padding: '0 20px',
+          boxSizing: 'border-box',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          paddingTop: '40px',
         }}>
           {isGameOverScreen ? (
+            /* Custom Arcade-Style Retro Scoreboard Table */
             <div style={{
-              textAlign: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              height: '100%',
+              width: '100%',
+              height: '380px',
+              backgroundColor: '#111',
+              border: '1px solid #444',
+              borderRadius: '4px',
+              overflowY: 'auto',
+              padding: '10px',
+              boxSizing: 'border-box'
             }}>
-              <div style={{ fontSize: '32px', color: '#ffcc4c', marginBottom: '10px' }}>🏆 QUIZ COMPLETE!</div>
-              <div style={{ fontSize: '20px' }}>Final Score Summary: {score} / {totalDinos * 3} Points</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #555', color: '#ffcc4c' }}>
+                    <th style={{ padding: '8px' }}>Dinosaur Name</th>
+                    <th style={{ padding: '8px' }}>Your Answer</th>
+                    <th style={{ padding: '8px', textAlign: 'center' }}>Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dinos.map((d, idx) => (
+                    <tr key={idx} style={{ 
+                      borderBottom: '1px solid #222',
+                      backgroundColor: idx % 2 === 0 ? '#161616' : 'transparent' 
+                    }}>
+                      <td style={{ padding: '8px', textTransform: 'capitalize', fontWeight: 'bold' }}>
+                        {d.fullName}
+                      </td>
+                      <td style={{ 
+                        padding: '8px', 
+                        color: d.userAnswer === 'skip' ? '#777' : d.pointsEarned > 0 ? '#33ff66' : '#ff3333'
+                      }}>
+                        {d.userAnswer === 'skip' ? '[SKIPPED]' : d.userAnswer ? `"${d.userAnswer}"` : '""'}
+                      </td>
+                      <td style={{ 
+                        padding: '8px', 
+                        textAlign: 'center',
+                        fontWeight: 'bold',
+                        color: d.pointsEarned === 3 ? '#ffcc4c' : '#fff'
+                      }}>
+                        +{d.pointsEarned ?? 0}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : (
             <img 
@@ -372,36 +438,37 @@ export default function DinoQuiz() {
               alt="Dinosaur identification card" 
               style={{
                 width: '500px',
-                height: '380px',
+                height: '360px',
                 objectFit: 'contain',
               }}
             />
           )}
         </div>
 
-        {/* Text UI Panel systems */}
+        {/* Text UI Control Console */}
         <div style={{
           position: 'absolute',
           bottom: '0px',
           left: '0px',
           width: '100%',
-          height: '160px',
+          height: '120px',
           boxSizing: 'border-box',
+          borderTop: '1px solid #222',
+          backgroundColor: '#151515'
         }}>
           <div style={{
             position: 'absolute',
-            bottom: '110px',
+            top: '15px',
             left: '20px',
-            fontSize: '16px',
-            color: 'rgba(204, 204, 204, 1)',
+            fontSize: '14px',
+            color: '#aaa',
           }}>
             {isGameOverScreen ? (
-              `Game over! Final score: ${score}/${totalDinos * 3}`
+              "Scroll up and down through the list above to view all of your graded answers."
             ) : skipConfirm ? (
               "Are you sure you want to skip? Type 'yes' + Enter to confirm, or just Enter to cancel."
             ) : alreadyAnswered ? (
-              currentIndex + 1 === totalDinos && gameEndedOnce ? 
-                "Left Arrow back  |  Right Arrow to Game Over Screen" : "Left Arrow back  |  Right Arrow next"
+              "Left Arrow back  |  Right Arrow next"
             ) : (
               "What dinosaur/reptile is this? Type your answer. Enter to submit, type 'skip' to skip."
             )}
@@ -409,18 +476,18 @@ export default function DinoQuiz() {
 
           <div style={{
             position: 'absolute',
-            bottom: '75px',
+            top: '40px',
             left: '20px',
-            fontSize: '26px',
-            color: 'rgba(51, 255, 102, 1)',
+            fontSize: '24px',
+            color: '#33ff66',
           }}>
             {isGameOverScreen ? (
               "Thanks for playing!"
             ) : alreadyAnswered ? (
               currentDino.userAnswer === "skip" ? (
-                "You skipped this one."
+                "You skipped this question."
               ) : (
-                `Your answer: "${currentDino.userAnswer}" (+${currentDino.pointsEarned} pts)`
+                `Your submitted answer: "${currentDino.userAnswer}"`
               )
             ) : (
               `> ${typingBuffer}`
@@ -429,10 +496,10 @@ export default function DinoQuiz() {
 
           <div style={{
             position: 'absolute',
-            bottom: '50px',
+            bottom: '35px',
             left: '20px',
-            fontSize: '16px',
-            color: 'rgba(127, 204, 255, 1)',
+            fontSize: '14px',
+            color: '#7fccff',
           }}>
             {!isGameOverScreen && !alreadyAnswered && (
               currentDino.hintUsed ? `Hint: ${currentDino.hint}` : "Down Arrow for a hint"
@@ -441,12 +508,12 @@ export default function DinoQuiz() {
 
           <div style={{
             position: 'absolute',
-            bottom: '15px',
+            bottom: '10px',
             left: '20px',
-            fontSize: '22px',
-            color: 'rgba(255, 255, 76, 1)',
+            fontSize: '18px',
+            color: '#ffff4c',
           }}>
-            {isGameOverScreen ? "Left Arrow to review your answers" : getFeedbackMessage()}
+            {isGameOverScreen ? "Quiz complete summary breakdown" : getFeedbackMessage()}
           </div>
         </div>
       </div>
